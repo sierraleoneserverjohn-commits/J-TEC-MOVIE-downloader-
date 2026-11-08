@@ -12,6 +12,9 @@ import {
   INITIAL_LIBRARY_ITEMS, 
   INITIAL_DOWNLOADS 
 } from '../data/mockMovies';
+import { NotificationService } from '../services/notificationService';
+import { DeviceService } from '../services/deviceService';
+import { ApiService, BackendHealthResponse } from '../services/apiService';
 
 interface Toast {
   id: string;
@@ -55,6 +58,9 @@ interface AppContextType {
   // Search state across screens
   globalSearchQuery: string;
   setGlobalSearchQuery: (q: string) => void;
+  // Infrastructure & Native Runtime
+  backendHealth: BackendHealthResponse | null;
+  isNativeAndroid: boolean;
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -88,6 +94,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [favourites, setFavourites] = useState<string[]>(['the-stranger-1946', 'metropolis-1927']);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [backendHealth, setBackendHealth] = useState<BackendHealthResponse | null>(null);
+  const isNativeAndroid = DeviceService.isAndroid();
+
+  useEffect(() => {
+    // Initial health check against Render backend if VITE_API_BASE_URL is configured
+    if (ApiService.isConfigured()) {
+      ApiService.checkHealth().then((health) => {
+        if (health) setBackendHealth(health);
+      });
+    }
+  }, []);
 
   const [settings, setSettings] = useState<UserSettings>(() => {
     try {
@@ -191,6 +208,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDownloads((prev) => prev.filter((d) => d.id !== id));
     if (item) {
       showToast(`Cancelled download: ${item.movieTitle}`, 'info');
+      NotificationService.notifyDownloadCancelled(item.movieTitle);
     }
   };
 
@@ -272,6 +290,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                   return [newLibItem, ...prevLib];
                 });
                 showToast(`Download complete: ${item.movieTitle} (${item.resolution}) is in My Library`, 'success');
+                NotificationService.notifyDownloadCompleted(item.movieTitle, item.resolution, item.localPath);
               }, 100);
             }
 
@@ -352,6 +371,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         storageInfo,
         globalSearchQuery,
         setGlobalSearchQuery,
+        backendHealth,
+        isNativeAndroid,
       }}
     >
       {children}

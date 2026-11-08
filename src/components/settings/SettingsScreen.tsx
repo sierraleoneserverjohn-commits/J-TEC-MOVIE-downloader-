@@ -16,11 +16,15 @@ import {
   Check, 
   RefreshCw, 
   Film,
-  ExternalLink
+  ExternalLink,
+  Server,
+  Activity
 } from 'lucide-react';
+import { ApiService } from '../../services/apiService';
 
 export const SettingsScreen: React.FC = () => {
-  const { settings, updateSettings, showToast, setCurrentTab } = useApp();
+  const { settings, updateSettings, showToast, setCurrentTab, backendHealth, isNativeAndroid } = useApp();
+  const [testingConnection, setTestingConnection] = useState(false);
 
   const [cacheSize, setCacheSize] = useState('48.4 MB');
   const [showClearCacheModal, setShowClearCacheModal] = useState(false);
@@ -50,6 +54,17 @@ export const SettingsScreen: React.FC = () => {
       }
     });
     showToast(`${!current.enabled ? 'Enabled' : 'Disabled'} provider`, 'info');
+  };
+
+  const handleTestBackend = async () => {
+    setTestingConnection(true);
+    const health = await ApiService.checkHealth();
+    setTestingConnection(false);
+    if (health) {
+      showToast(`Connected to Render backend (${health.service} v${health.version}) · Redis: ${health.cache.status}`, 'success');
+    } else {
+      showToast('Render backend unreachable or in sleep mode. Operating in offline archive mode.', 'warning');
+    }
   };
 
   return (
@@ -379,12 +394,84 @@ export const SettingsScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* SECTION E: PRIVACY & RIGHTS */}
+      {/* SECTION E: INFRASTRUCTURE & DEPLOYMENT STATUS */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <Server className="w-4 h-4 text-slate-400" />
+            <h2 className="text-xs uppercase tracking-wider font-mono-nums font-semibold text-slate-300">
+              E. Cloud Infrastructure &amp; Runtime
+            </h2>
+          </div>
+          <button
+            onClick={handleTestBackend}
+            disabled={testingConnection}
+            className="text-[11px] font-mono-nums text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3 h-3 ${testingConnection ? 'animate-spin' : ''}`} />
+            <span>Test Health Endpoint</span>
+          </button>
+        </div>
+
+        <div className="bg-[#111317] border border-white/5 rounded-2xl p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Render Backend */}
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+              <span className="text-[10px] uppercase font-mono-nums tracking-wider text-slate-400">
+                Render Backend
+              </span>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${backendHealth ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                <span className="text-xs font-semibold text-white">
+                  {backendHealth ? 'Render Live' : 'Ready / Standby'}
+                </span>
+              </div>
+              <p className="text-[11px] font-mono-nums text-slate-400 truncate">
+                {ApiService.getBaseUrl() || 'Embedded Fallback Mode'}
+              </p>
+            </div>
+
+            {/* Upstash Redis */}
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+              <span className="text-[10px] uppercase font-mono-nums tracking-wider text-slate-400">
+                Upstash Redis Cache
+              </span>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${backendHealth?.cache.connected ? 'bg-emerald-400' : 'bg-sky-400'}`} />
+                <span className="text-xs font-semibold text-white">
+                  {backendHealth?.cache.connected ? 'Upstash Connected' : 'REST Cache Ready'}
+                </span>
+              </div>
+              <p className="text-[11px] font-mono-nums text-slate-400">
+                Metadata &amp; Search Rate Limiting
+              </p>
+            </div>
+
+            {/* Runtime Container */}
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+              <span className="text-[10px] uppercase font-mono-nums tracking-wider text-slate-400">
+                Client Runtime
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-xs font-semibold text-white">
+                  {isNativeAndroid ? 'Android Native (Capacitor)' : 'Web Browser SPA'}
+                </span>
+              </div>
+              <p className="text-[11px] font-mono-nums text-slate-400">
+                Offline Playback Supported
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION F: PRIVACY & RIGHTS */}
       <section className="space-y-3">
         <div className="flex items-center gap-2 px-1">
           <ShieldCheck className="w-4 h-4 text-slate-400" />
           <h2 className="text-xs uppercase tracking-wider font-mono-nums font-semibold text-slate-300">
-            E. Privacy, Legal & Rights Verification
+            F. Privacy, Legal &amp; Rights Verification
           </h2>
         </div>
 
@@ -407,12 +494,12 @@ export const SettingsScreen: React.FC = () => {
         </div>
       </section>
 
-      {/* SECTION F: ABOUT JTEC MOVIES */}
+      {/* SECTION G: ABOUT JTEC MOVIES */}
       <section className="space-y-3">
         <div className="flex items-center gap-2 px-1">
           <Info className="w-4 h-4 text-slate-400" />
           <h2 className="text-xs uppercase tracking-wider font-mono-nums font-semibold text-slate-300">
-            F. About JTEC MOVIES
+            G. About JTEC MOVIES
           </h2>
         </div>
 

@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: jtec-movies-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    region: frankfurt # or oregon, ohio, singapore
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        sync: false
+        # Configure in Render Dashboard: your GitHub Pages origin, e.g. https://<username>.github.io
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+        # Configure in Render Dashboard from Upstash Console
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+        # Configure in Render Dashboard from Upstash Console
+      - key: REDIS_CACHE_TTL_SECONDS
+        value: 3600
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 120
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 60000

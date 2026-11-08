@@ -1,0 +1,102 @@
+name: Build JTEC MOVIES Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'package.json'
+      - '.github/workflows/build-android-apk.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: 'android-apk-build'
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Java 17 (Required by Android Gradle Plugin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Build Web Application
+        env:
+          VITE_BASE_PATH: './'
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://jtec-movies-api.onrender.com' }}
+        run: npm run build
+
+      - name: Capacitor Sync Android Native Project
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Grant Execute Permission to Gradle Wrapper
+        run: chmod +x android/gradlew
+
+      - name: Build Android Debug APK
+        run: |
+          cd android
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JTEC-MOVIES-Debug-APK
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      # Conditional Step: Build Signed Release APK if Secrets are configured in GitHub
+      - name: Build Signed Release APK (Production)
+        if: ${{ env.KEYSTORE_AVAILABLE == 'true' }}
+        env:
+          KEYSTORE_AVAILABLE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "Decoding release keystore..."
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+          cd android
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=release.keystore \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Upload Signed Release APK Artifact
+        if: ${{ env.KEYSTORE_AVAILABLE == 'true' }}
+        env:
+          KEYSTORE_AVAILABLE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: JTEC-MOVIES-Signed-Release-APK
+          path: android/app/build/outputs/apk/release/*.apk
+          retention-days: 30
