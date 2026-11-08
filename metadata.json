@@ -1,0 +1,6 @@
+{
+  "name": "JTEC MOVIES",
+  "description": "Premium Android-first movie discovery and offline-download application for public archive cinema, historical films, and documentaries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
